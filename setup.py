@@ -10,5 +10,8 @@ setup(
     packages=find_packages(),
     extras_require={
         'TIGR': ['python-mhash>=1.4']
+    },
+    entry_points={
+        'libsheep.extensions': ["TIGR = libsheep.extensions.tigr:TIGR"]
     }
 )

@@ -33,137 +33,218 @@ import base64
 import string
 import re
 
-# Object wrapper for ADC message
+
+
 class Message(object):
-    def __init__(self,mtype,cmd,headargs={},posargs=[],nameargs={}):
-        self.mtype = mtype
-        self.cmd = cmd
-        self.headargs = headargs
-        self.posargs = posargs
-        self.nameargs = nameargs
-
-    def shorthand():
-        return self.mtype + self.cmd
-
+    """Wrapper object for ADC messages."""
     
-    def encode():
-        # Encode message header
-        msg = self.mtype + self.cmd
-
-        if mtype == 'B':
-            msg += ' ' + base64.b32encode(self.headargs['sid'])
-        elif mtype in ['D','E']:
-            msg += ' ' + base64.b32encode(self.headargs['sid'])
-            msg += ' ' + base64.b32encode(self.headargs['tsid'])
-        elif mtype == 'F':
-            msg += ' ' + base64.b32encode(self.headargs['sid'])
-            msg += ' ' + string.join(self.headargs['features'],'')
-        elif mtype == 'U':
-            msg += ' ' + base64.b32encode(self.headargs['cid'])
-
-        # Encode message arguments
+    FEATURE_RE = re.compile(r'[+-][A-Z][A-Z0-9]{3}')
+    REGISTRY = {}
+    
+    @classmethod
+    def register(cls, type, encoder=None, decoder=None):
+        cls.REGISTRY[type] = (encoder, decoder)
+    
+    @classmethod
+    def decode(cls, msg):
+        """Convert string `msg` to `Message` instance."""
+        tokens = msg.split(' ') # Split on space.
+        first = cls.consume(tokens) # First determines how to consume the rest.
+        if len(first) == 4:
+            message_type = first[0]
+            command = first[1:]
+            message = cls(message_type, command)
+            if message_type in cls.REGISTRY:
+                encoder, decoder = cls.REGISTRY[message_type]
+                if callable(decoder):
+                    decoder(message, tokens)
+            else:
+                raise ProtocolException("Unrecognized message type: %r" % message_type)
+            return message
+        else:
+            raise ProtocolException("Invalid header token: %r" % first)
+    
+    @classmethod
+    def get_params(cls, tokens):
+        for token in tokens:
+            token = cls.unescape(token)
+            name = token[:2]
+            value = token[2:]
+            yield (name, value)
+    
+    @classmethod
+    def consume(cls, tokens, decode_func=None):
+        try:
+            token = tokens.pop(0)
+        except IndexError:
+            raise ProtocolException("Expected token not found.")
+        else:
+            if callable(decode_func):
+                token = decode_func(token)
+            return token
+    
+    @classmethod
+    def escape(cls, text):
+        # Three escapes are defined.
+        escaped = text.replace('\\', '\\\\')
+        escaped = escaped.replace(' ', '\\s')
+        escaped = escaped.replace('\n', '\\n')
+        return escaped
+    
+    @classmethod
+    def unescape(cls, text):
+        unescaped = text.replace('\\\\', '\\')
+        unescaped = unescaped.replace('\\s', ' ')
+        unescaped = unescaped.replace('\\n', '\n')
+        return unicode(unescaped)
+    
+    def __init__(self, type, command):
+        self.type = type
+        self.command = command
+        self.params = []
+    
+    def __repr__(self):
+        return "Message(%r, %r)" % (self.type, self.command)
+    
+    def decode_B_header(self, tokens):
+        self.my_sid = self.consume(tokens, base64.b32decode)
+    
+    def encode_B_header(self):
+        yield base64.b32encode(self.my_sid)
+    
+    def decode_DE_header(self, tokens):
+        self.my_sid = self.consume(tokens, base64.b32decode)
+        self.target_sid = self.consume(tokens, base64.b32decode)
+    
+    def encode_DE_header(self):
+        yield base64.b32encode(self.my_sid)
+        yield base64.b32encode(self.target_sid)
+    
+    def decode_F_header(self, tokens):
+        self.my_sid = self.consume(tokens, base64.b32decode)
+        feature_sets = {}
+        self.required_features = feature_sets['+'] = set([])
+        self.excluded_features = feature_sets['-'] = set([])
+        for feature in self.consume(tokens, self.FEATURE_RE.findall):
+            rule = feature[0]
+            name = feature[1:]
+            feature_sets[rule].add(name)
+    
+    def encode_F_header(self):
+        yield base64.b32encode(self.my_sid)
+        yield ''.join(['+%s' % feature for feature in self.required_features] +
+                      ['-%s' % feature for feature in self.excluded_features])
+    
+    def decode_U_header(self, tokens):
+        self.my_cid = self.consume(tokens, base64.b32decode)
+    
+    def encode_U_header(self, tokens):
+        yield base64.b32encode(self.my_cid)
+    
+    def decode_STA_params(self, tokens):
+        code = self.consume(tokens)
+        self.description = self.consume(tokens, self.unescape)
+        self.severity = code[0]
+        self.error_code = code[1:3]
+    
+    def SUP(self, tokens):
+        pass
+    
+    def SID(self, tokens):
+        self.sid = self.consume(tokens, base64.b32decode)
+    
+    def INF(self, tokens):
+        pass
+    
+    def MSG(self, tokens):
+        self.text = self.consume(tokens, self.unescape)
+    
+    def SCH(self, tokens):
+        self.params[:] = self.get_params(tokens)
+    
+    def RES(self, tokens):
+        self.params[:] = self.get_params(tokens)
+    
+    def decode_CTM_params(self, tokens):
+        self.protocol = self.consume(tokens)
+        self.port = self.consume(tokens, int)
+        self.token = self.consume(tokens)
+    
+    def decode_RCM_params(self, tokens):
+        self.protocol = self.consume(tokens)
+        self.token = self.consume(tokens)
+    
+    def decode_GPA_params(self, tokens):
+        self.data = self.consume(tokens, base64.b32decode)
+    
+    def decode_PAS_params(self, tokens):
+        self.password = self.consume(tokens, base64.b32decode)
+    
+    def decode_QUI_params(self, tokens):
+        self.session_id = self.consume(tokens, base64.b32decode)
+    
+    def decode_GET_params(self, tokens):
+        
+    
+    def decode_GFI_params(self, tokens):
+        pass
+    
+    def decode_SND_params(self, tokens):
+        pass
+    
+    def encode(self):
+        # Encode message header.
+        tokens = ['%s%s' % (self.type, self.command)]
+        if self.type in self.REGISTRY:
+            encoder, decoder = cls.REGISTRY[message_type]
+            if callable(encoder):
+                tokens.extend(encoder(message))
+        
+        # Encode message parameters.
         for arg in self.posargs:
             msg += " " + self.escape_text(arg)
         for arg in self.nameargs.keys():
             msg += " " + arg + self.escape_text(nameargs[arg])
-        msg += "\n"
-
-        #FIXME: Is this really the right place to be doing this?
-        encoded = unicodedata.normalize( 'NFC', unicode(msg, 'utf-8') )
-        return encoded
-
-    # three escapes are defined
-    def escape_text(text):
-        escaped = text.replace("\\","\\\\") # escape \ first
-        escaped = escaped.replace(" ","\\ ")
-        escaped = escaped.replace("\n","\\n")
-        return escaped
-
-    def unescape_text(text):
-        unescaped = text.replace("\\\\","\\")
-        unescaped = unescaped.replace("\\ "," ")
-        unescaped = unescaped.replace("\\n","\n")
-        return unescaped
-
-
-# converts string to Message object
-def decode(msg):
-    if not msg.endswith('\n'):
-        raise ProtocolException("Incomplete message: missing newline.")
-    
-    # Split on spaces, exclude trailing newline.
-    tokens = re.split(' ', msg.rstrip('\n'))
-    
-    # First token.
-    token = tokens.pop(0)
-    
-    # Extract message type and command.
-    if token.length < 4:
-        raise ProtocolException("Command too short: %r" % (token,))
-    
-    mtype = token[0]
-    cmd = token[1:3]
-    
-    headargs = decodeHeaderTokens(mtype, tokens)
-    cmdargs = decodeCommandTokens(mtype, cmd, tokens)
-    
-    return Message(mtype, cmd, headargs, cmdargs['pos'], cmdargs['name'])
-
-def decodeHeaderTokens(mtype, tokens):
-    headargs = {}
-    if mtype == 'B':
-        if len(tokens) < 1:
-            raise ProtocolException("B msg missing args")
-        headargs['sid'] = base64.b32decode(tokens.pop(0))
-    elif mtype in 'DE':
-        if len(tokens) < 2:
-            raise ProtocolException("D|E msg missing args")
-        headargs['sid'] = base64.b32decode(tokens.pop(0))
-        headargs['tsid'] = base64.b32decode(tokens.pop(0))
-    elif mtype == 'F':
-        if len(tokens) < 2:
-            raise ProtocolException("F msg missing args")
         
-        headargs['sid'] = base64.b32decode(tokens.pop(0))
-        features_str = tokens.pop(0)
-        features = re.findall(r'[+-][A-Z][A-Z0-9]{3}', features_str)
-        # Check that the string didn't contain any bozo data.
-        if ''.join(features) != features_str:
-            raise ProtocolException("Invalid features message: %r", features_str)
-        
-        headargs['features'] = features
-    elif mtype == 'U':
-        if len(tokens) < 1:
-            raise ProtocolException("U msg missing args")
-        headargs['cid'] = base64.b32decode(tokens.pop(0))
-    return headargs
+        # FIXME: Is this really the right place to be doing this?
+        return unicodedata.normalize('NFC', u' '.join(tokens)).encode('utf-8')
 
-def decodeCommandTokens(mtype,cmd,tokens):
-    cmd_args['pos'] = []
-    cmd_args['name'] = {}
-    
-    #TODO: This will depend on the individual command =\    
-    
-#TODO: implement connectHub
-# ... something like this...
-## api -> connectHub(addr,port=defaultport)
-#   connect addr port
-#   send( adc_msg( H, SUP, [ADBASE,ADTIGR,...] ) )
-#   send( msg_encode('H', 'SUP', {}, ['ADBASE','ADTIGR'])
-#   msg = recv( )
-#   if(msg.shorthand=='ISUP')
-#       hubFeatures(msg.posargs)
-#   msg = recv( )
-#   if(msg.shorthand=='ISID')
-#       SID = msg.headargs['sid']
-#   recv ISID <client-sid>
-#   * recv IINF HU1 HI1 ...
-#   * send BINF <my-sid> ID... PD...
-#   recv IGPA ...
-#   send HPAS ...
-#   recv BINF <all clients>
-#   recv BINF <Client-SID>
-#   ... provide hub id information for further communication
-#   * = optional
+Message.register('B', Message.encode_B_header, Message.decode_B_header)
+Message.register('C')
+Message.register('I')
+Message.register('H')
+Message.register('D', Message.encode_DE_header, Message.decode_DE_header)
+Message.register('E', Message.encode_DE_header, Message.decode_DE_header)
+Message.register('F', Message.encode_F_header, Message.decode_F_header)
+Message.register('U', Message.encode_U_header, Message.decode_U_header)
 
+class Header(object):
+    pass
 
+class Command(object):
+    pass
+
+class SUP(Command):
+    pass
+
+class STA(Command):
+    pass
+
+# Handshake goes something like this.
+# Enter stage PROTOCOL.
+# -> HSUP ADBASE ADTIGR ...
+# <- ISUP ADBASE ADTIGR ...
+# <- ISID <sid>
+# [<- IINF HU1 HI1 ...]
+# Enter stage IDENTIFY.
+# -> BINF <sid> ID... PD... 
+# [Enter stage VERIFY.]
+# <- IGPA ...
+# -> HPAS ...
+# Enter stage NORMAL.
+# If not sent previously:
+# <- IINF HU1 HI1 ...
+# For each client in NORMAL state:
+# <- BINF ...
+# For connecting client:
+# <- BINF ...

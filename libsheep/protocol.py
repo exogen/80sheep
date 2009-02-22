@@ -1,4 +1,4 @@
-from libsheep.parameters import ParameterCollection
+from libsheep.parameters import Parameter, ParameterCollection
 
 class ProtocolError(RuntimeError):
     pass
@@ -49,7 +49,7 @@ class Command(MessagePart):
 class Message(object):
     context = Context(None)
     command = Command(None)
-        
+    
     def __init__(self, context, command):
         self.context = context
         self.command = command
