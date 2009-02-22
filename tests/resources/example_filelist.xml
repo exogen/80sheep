@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<FileListing Version="1" CID="mycid" Generator="DC++ 0.701" Base="/">
+  <Directory Name="share">
+    <Directory Name="DC++ Prerelease">
+      <File Name="DCPlusPlus.pdb" Size="17648640" TTH="xxx" />
+      <File Name="DCPlusPlus.exe" Size="946176" TTH="yyy" />
+    </Directory>
+    <File Name="ADC.txt" Size="154112" TTH="zzz" />
+  </Directory>
+  <!-- Only used by partial lists -->
+  <Directory Name="share2" Incomplete="1"/>
+</FileListing>
