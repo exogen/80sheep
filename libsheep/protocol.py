@@ -1,4 +1,5 @@
-from libsheep.parameters import Parameter, ParameterCollection
+from libsheep.parameters import *
+import re
 
 class ProtocolError(RuntimeError):
     pass
