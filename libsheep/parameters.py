@@ -1,5 +1,5 @@
 __all__ = ['String', 'Base32', 'Set', 'Flag', 'Delimited', 'Integer',
-           'Boolean', 'BitField', 'Parameter']
+           'Boolean', 'BitField', 'Parameter', 'ParameterCollection']
 
 class ParameterType(object):
     def encode(self, value):
