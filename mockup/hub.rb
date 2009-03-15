@@ -1,4 +1,5 @@
 Shoes.app do
+  background white
   stack do
     para "Hub name", :align => 'center'
     edit_line :text => "Search!"
