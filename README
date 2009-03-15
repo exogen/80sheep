@@ -1,0 +1,7 @@
+== Dependencies
+
+This program depends on python-mhash. To install this on
+Ubuntu with setuptools, run:
+  $ sudo su
+  # aptitude install libmhash-dev
+  # easy_install python-mhash
