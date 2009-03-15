@@ -8,12 +8,16 @@ Shoes.app do
       stack :width => -150 do
         border black
         para "Notifications"
+        stack do
+          para "Foo has barred in the baz"
+        end
       end
       stack :width => 150 do
         border black
         para "Users"
       end
     end
-    para "Chat"
+    edit_box
+    edit_line :text => "Chat!"
   end
 end
