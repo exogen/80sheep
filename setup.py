@@ -13,5 +13,7 @@ setup(
     },
     entry_points={
         'libsheep.extensions': ["TIGR = libsheep.extensions.tigr:TIGR"]
-    }
+    },
+    test_suite='nose.collector',
+    tests_require=['nose']
 )
