@@ -1,11 +1,11 @@
-from libsheep.parameters import *
 import re
+from libsheep.parameters import DeclarativeParameterMeta, Parameter, Base32, Set
 
 class ProtocolError(RuntimeError):
     pass
 
 class MessagePart(object):
-    __metaclass__ = ParameterCollection
+    __metaclass__ = DeclarativeParameterMeta
     
     def __new__(cls, code, *args, **kwargs):
         handler_class = cls.REGISTRY.get(code, cls)

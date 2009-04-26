@@ -3,8 +3,23 @@ from libsheep.protocol import Context, Command
 from libsheep.parameters import *
 
 class BASE(Feature):
-    # This feature will register the commands below.  Eventually.
-    pass
+    def enable(self):
+        """Register BASE commands."""
+        STA.register()
+        SUP.register()
+        SID.register()
+        INF.register()
+        MSG.register()
+        SCH.register()
+        RES.register()
+        CTM.register()
+        RCM.register()
+        GPA.register()
+        PAS.register()
+        QUI.register()
+        GET.register()
+        GFI.register()
+        SND.register()
 
 # BASE messages.
 

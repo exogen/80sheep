@@ -19,3 +19,7 @@ def test_h_context_creates_h_instance():
 def test_unknown_context_creates_generic_instance():
     context = Context('Z')
     assert type(context) is Context
+
+def test_message_decode_parses_message():
+    m = Message.decode('HSUP ADBASE ADTIGR')
+    assert isinstance(m, Message)

@@ -1,5 +1,9 @@
+import logging
+
 __all__ = ['String', 'Base32', 'Set', 'Flag', 'Delimited', 'Integer',
            'Boolean', 'BitField', 'Parameter', 'ParameterCollection']
+
+log = logging.getLogger(__name__)
 
 class ParameterType(object):
     def encode(self, value):
@@ -27,11 +31,13 @@ class Set(ParameterType):
         self.type = type
     
     def decode(self, data):
+        log.debug("Decoding %r...", data)
         values = set([])
         for value in data:
             if self.type is not None:
                 value = self.type(value)
             values.add(value)
+        log.debug("Decoded: %r", values)
         return values
     
     def encode(self, values):
@@ -138,12 +144,26 @@ class Parameter(object):
     def extract_data(self, data):
         return self.type.extract_data(data)
 
-class ParameterCollection(type):
+class ParameterMapper(object):
+    pass
+
+class ParameterCollection(object):
+    def __init__(self):
+        self.params = set([])
+        self.keys = {}
+    
+    def add(self, param):
+        self.params.add(param)
+        self.keys.setdefault(param.key, []).append(param)
+        
+    def __contains__(self, param):
+        return param in self.params
+
+class DeclarativeParameterMeta(type):
     def __new__(cls, name, bases, attrs):
-        param_attrs = attrs['_param_attrs'] = {}
-        param_keys = attrs['_param_keys'] = {}
-        for attr, value in attrs.iteritems():
-            if isinstance(value, Parameter):
-                param_attrs[attr] = value
-                param_keys.setdefault(value.key, []).append(value)
+        # params = ParameterCollection()
+        # for attr, value in attrs.iteritems():
+        #     if isinstance(value, Parameter):
+        #         params.add(attr, value)
+        # attrs['_params'] = params
         return type.__new__(cls, name, bases, attrs)
