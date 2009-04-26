@@ -67,5 +67,39 @@ class TestJoinNames(unittest.TestCase):
     def test_joined_names_are_escaped(self):
         self.assertEquals(Path(['a/b', 'c\\d']).string, 'a\\/b/c\\\\d')
 
+def test_parent_of_directory_is_directory_parent():
+    assert Path('a/b/').parent == Path('a/')
+
+def test_parent_of_file_is_its_directory():
+    assert Path('a/b').parent == Path('a/')
+
+def test_parent_of_root_is_none():
+    assert Path('/').parent == None
+    assert Path('a').parent == None
+
+def test_root_of_path_is_path_root():
+    assert Path('a/b/c').root == 'a'
+    assert Path('a').root == None
+
+def test_join_filenames_gives_second_filename():
+    assert Path('a').join('b') == Path('b')
+
+def test_join_paths_joins_paths():
+    assert Path('a/').join('b') == Path('a/b')
+
+def test_join_with_absolute_path_stomps_path():
+    assert Path('a/b/c').join('/foo') == Path('/foo')
+
+def test_repr_shows_path_representation():
+    assert repr(Path(['a','b','c'])) == "Path(u'a/b/c')"
+
+def test_file_is_file():
+    assert Path('a').is_file
+    assert not Path('a').is_directory
+
+def test_directory_is_directory():
+    assert Path('a/').is_directory
+    assert not Path('a/').is_file
+
 if __name__ == '__main__':
     unittest.main()
